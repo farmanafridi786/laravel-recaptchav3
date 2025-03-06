@@ -119,35 +119,32 @@ class RecaptchaV3
         $fieldId = uniqid($name . '-', false);
         $html = '<input type="hidden" name="' . $name . '" id="' . $fieldId . '" x-ref="recaptchaToken">';
         $html .= "<script>
-    document.addEventListener('alpine:init', () => {
-        // Locate the hidden reCAPTCHA field
-        const recaptchaInput = document.getElementById('{$fieldId}');
-        if (recaptchaInput) {
-            // Find the closest parent form
-            const form = recaptchaInput.closest('form');
-            if (form) {
-                // Optionally, attach Alpine data to the form
+document.addEventListener('DOMContentLoaded', () => {
+    const recaptchaInput = document.getElementById('{$fieldId}');
+    if (recaptchaInput) {
+        const form = recaptchaInput.closest('form');
+        if (form) {
+            // Attach Alpine data if not already set
+            if (!form.hasAttribute('x-data')) {
                 form.setAttribute('x-data', '{}');
-                form.addEventListener('submit', function(e) {
-                    // If no token is present, generate one on form submission
-                    if (recaptchaInput.value === '') {
-                        e.preventDefault();
-                        grecaptcha.ready(() => {
-                            grecaptcha.execute('{$this->sitekey}', { action: '{$action}' })
-                            .then((token) => {
-                                recaptchaInput.value = token;
-                                // Resubmit the form once the token is set
-                                form.submit();
-                            });
-                        });
-                    }
-                });
             }
+            form.addEventListener('submit', function(e) {
+                // Only execute if token is not already set
+                if (recaptchaInput.value === '') {
+                    e.preventDefault();
+                    grecaptcha.ready(() => {
+                        grecaptcha.execute('{$this->sitekey}', { action: '{$action}' })
+                        .then((token) => {
+                            recaptchaInput.value = token;
+                            form.submit();
+                        });
+                    });
+                }
+            });
         }
-    });
-    </script>";
-        return $html;
     }
+});
+</script>";
 
 
     /**
