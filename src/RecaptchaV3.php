@@ -73,7 +73,7 @@ class RecaptchaV3
             'form_params' => [
                 'secret'   => $this->secret,
                 'response' => $token,
-                'remoteip' => $this->request->getClientIp(),
+                'remoteip' => $this->getRealClientIp(),
             ],
         ]);
 
@@ -117,15 +117,49 @@ class RecaptchaV3
     public function field($action, $name = 'g-recaptcha-response')
     {
         $fieldId = uniqid($name . '-', false);
-        $html = '<input type="hidden" name="' . $name . '" id="' . $fieldId . '">';
+        $html = '<input type="hidden" name="' . $name . '" id="' . $fieldId . '" x-ref="recaptchaToken">';
         $html .= "<script>
-  grecaptcha.ready(function() {
-      grecaptcha.execute('" . $this->sitekey . "', {action: '" . $action . "'}).then(function(token) {
-         document.getElementById('" . $fieldId . "').value = token;
-      });
-  });
-  </script>";
+    document.addEventListener('alpine:init', () => {
+        // Locate the hidden reCAPTCHA field
+        const recaptchaInput = document.getElementById('{$fieldId}');
+        if (recaptchaInput) {
+            // Find the closest parent form
+            const form = recaptchaInput.closest('form');
+            if (form) {
+                // Optionally, attach Alpine data to the form
+                form.setAttribute('x-data', '{}');
+                form.addEventListener('submit', function(e) {
+                    // If no token is present, generate one on form submission
+                    if (recaptchaInput.value === '') {
+                        e.preventDefault();
+                        grecaptcha.ready(() => {
+                            grecaptcha.execute('{$this->sitekey}', { action: '{$action}' })
+                            .then((token) => {
+                                recaptchaInput.value = token;
+                                // Resubmit the form once the token is set
+                                form.submit();
+                            });
+                        });
+                    }
+                });
+            }
+        }
+    });
+    </script>";
         return $html;
+    }
+
+
+    /**
+     * check if server is cloudflare then this method will fetch real user ip becuase cloudare send cloudflare server ip in REMOTE_ADDR 
+     * @return string
+     */
+    protected function getRealClientIp()
+    {
+        if ($this->request->server->has('HTTP_CF_CONNECTING_IP')) {
+            return $this->request->server->get('HTTP_CF_CONNECTING_IP');
+        }
+        return $this->request->getClientIp();
     }
 
 
