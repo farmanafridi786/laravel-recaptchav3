@@ -12,6 +12,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Log;
 
 class RecaptchaV3
 {
@@ -20,6 +21,8 @@ class RecaptchaV3
      * @var string
      */
     protected $secret;
+
+    protected $secretv2;
     /**
      * @var string
      */
@@ -51,7 +54,9 @@ class RecaptchaV3
     public function __construct(Repository $config, Client $client, Request $request, Application $app)
     {
         $this->secret = $config['recaptchav3']['secret'];
+        $this->secretv2 = $config['recaptchav3']['secretv2'];
         $this->sitekey = $config['recaptchav3']['sitekey'];
+        $this->sitekeyv2 = $config['recaptchav3']['sitekeyv2'];
         $this->origin = $config['recaptchav3']['origin'] ?? 'https://www.google.com/recaptcha';
         $this->locale = $config['recaptchav3']['locale'] ?? $app->getLocale();
         $this->http = $client;
@@ -68,7 +73,6 @@ class RecaptchaV3
      */
     public function verify($token, $action = null)
     {
-
         $response = $this->http->request('POST', $this->origin . '/api/siteverify', [
             'form_params' => [
                 'secret'   => $this->secret,
@@ -92,6 +96,21 @@ class RecaptchaV3
         return isset($body['score']) ? $body['score'] : false;
 
     }
+    public function verifyV2($token)
+    {
+        $response = $this->http->request('POST', $this->origin . '/api/siteverify', [
+            'form_params' => [
+                'secret'   => $this->secretv2,
+                'response' => $token,
+                'remoteip' => $this->getRealClientIp(),
+            ],
+        ]);
+
+        $body = json_decode($response->getBody(), true);
+
+        // For reCAPTCHA v2, simply check if the response indicates success.
+        return isset($body['success']) && $body['success'] === true;
+    }
 
 
     /**
@@ -101,6 +120,10 @@ class RecaptchaV3
     {
         return $this->sitekey;
     }
+    public function sitekeyv2()
+    {
+        return $this->sitekeyv2;
+    }
 
     /**
      * @return string
@@ -108,6 +131,11 @@ class RecaptchaV3
     public function initJs()
     {
         return '<script src="' . $this->origin . '/api.js?hl=' . $this->locale . '&render=' . $this->sitekey . '"></script>';
+    }
+
+    public function initV2Js()
+    {
+        return '<script src="' . $this->origin . '/api.js?hl=' . $this->locale . '&render=' . $this->sitekeyv2 . '"></script>';
     }
 
 
@@ -145,10 +173,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>";
+        return $html;
+    }
+
+    public function fieldV2() {
+        ///
+        return '<div class="g-recaptcha" data-sitekey="'.$this->sitekeyv2.'"></div>';
+    }
+
 
 
     /**
-     * check if server is cloudflare then this method will fetch real user ip becuase cloudare send cloudflare server ip in REMOTE_ADDR 
+     * check if server is cloudflare then this method will fetch real user ip becuase cloudare send cloudflare server ip in REMOTE_ADDR
      * @return string
      */
     protected function getRealClientIp()
