@@ -135,7 +135,7 @@ class RecaptchaV3
 
     public function initV2Js()
     {
-        return '<script src="' . $this->origin . '/api.js?hl=' . $this->locale . '&render=' . $this->sitekeyv2 . '"></script>';
+        return '<script src="' . $this->origin . '/api.js?hl=' . $this->locale . '"></script>';
     }
 
 
