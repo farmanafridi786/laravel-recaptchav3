@@ -145,34 +145,14 @@ class RecaptchaV3
     public function field($action, $name = 'g-recaptcha-response')
     {
         $fieldId = uniqid($name . '-', false);
-        $html = '<input type="hidden" name="' . $name . '" id="' . $fieldId . '" x-ref="recaptchaToken">';
+        $html = '<input type="hidden" name="' . $name . '" id="' . $fieldId . '">';
         $html .= "<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const recaptchaInput = document.getElementById('{$fieldId}');
-    if (recaptchaInput) {
-        const form = recaptchaInput.closest('form');
-        if (form) {
-            // Attach Alpine data if not already set
-            if (!form.hasAttribute('x-data')) {
-                form.setAttribute('x-data', '{}');
-            }
-            form.addEventListener('submit', function(e) {
-                // Only execute if token is not already set
-                if (recaptchaInput.value === '') {
-                    e.preventDefault();
-                    grecaptcha.ready(() => {
-                        grecaptcha.execute('{$this->sitekey}', { action: '{$action}' })
-                        .then((token) => {
-                            recaptchaInput.value = token;
-                            form.submit();
-                        });
-                    });
-                }
-            });
-        }
-    }
-});
-</script>";
+  grecaptcha.ready(function() {
+      grecaptcha.execute('" . $this->sitekey . "', {action: '" . $action . "'}).then(function(token) {
+         document.getElementById('" . $fieldId . "').value = token;
+      });
+  });
+  </script>";
         return $html;
     }
 
